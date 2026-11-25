@@ -1,0 +1,43 @@
+name: Pwnry Skill Check
+description: Look up agent skills (directories with a SKILL.md) in the public Pwnry Skill Registry by content hash.
+author: Pwnry
+branding:
+  icon: shield
+  color: purple
+inputs:
+  paths:
+    description: Skill directories separated by whitespace. Empty checks every directory in the repository that contains a SKILL.md.
+    required: false
+    default: ""
+  fail-on:
+    description: "findings: fail when a registry result has findings. unknown: also fail for skills without a published result. Empty: report only."
+    required: false
+    default: findings
+  api:
+    description: Registry origin.
+    required: false
+    default: https://pwnry.ai
+runs:
+  using: composite
+  steps:
+    - name: Check skills against the Pwnry Skill Registry
+      shell: bash
+      env:
+        PWNRY_API: ${{ inputs.api }}
+        INPUT_PATHS: ${{ inputs.paths }}
+        INPUT_FAIL_ON: ${{ inputs.fail-on }}
+      run: |
+        set -euo pipefail
+        paths="$INPUT_PATHS"
+        if [ -z "$paths" ]; then
+          paths=$(find . -name SKILL.md -not -path './.git/*' -exec dirname {} \; | LC_ALL=C sort)
+        fi
+        if [ -z "$paths" ]; then
+          echo "No SKILL.md found."
+          exit 0
+        fi
+        args=()
+        if [ -n "$INPUT_FAIL_ON" ]; then args+=(--fail-on "$INPUT_FAIL_ON"); fi
+        # Word splitting of $paths is intended: one argument per directory.
+        # shellcheck disable=SC2086
+        sh "$GITHUB_ACTION_PATH/skill-check.sh" "${args[@]}" $paths

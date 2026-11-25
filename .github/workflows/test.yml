@@ -1,0 +1,31 @@
+name: test
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  action:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Unknown skills pass with fail-on findings
+        uses: ./
+        with:
+          paths: test/unlisted-skill
+          fail-on: findings
+      - name: Unknown skills fail with fail-on unknown
+        id: strict
+        continue-on-error: true
+        uses: ./
+        with:
+          paths: test/unlisted-skill
+          fail-on: unknown
+      - name: Expect the strict run to fail
+        if: steps.strict.outcome != 'failure'
+        run: exit 1
+      - name: Discovery finds the fixture
+        uses: ./
+        with:
+          fail-on: ""

@@ -29,3 +29,19 @@ jobs:
         uses: ./
         with:
           fail-on: ""
+
+  check:
+    # Uses this repository's free monthly allowance, so only on demand.
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+      - name: Full Skill Check of the fixture
+        uses: ./
+        with:
+          paths: test/unlisted-skill
+          check: true
+          fail-on: findings

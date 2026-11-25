@@ -1,5 +1,5 @@
 name: Pwnry Skill Check
-description: Look up agent skills (directories with a SKILL.md) in the public Pwnry Skill Registry by content hash.
+description: Check agent skills (directories with a SKILL.md) with Pwnry. Registry lookup by content hash, or a full Skill Check (free for public repositories).
 author: Pwnry
 branding:
   icon: shield
@@ -13,6 +13,18 @@ inputs:
     description: "findings: fail when a registry result has findings. unknown: also fail for skills without a published result. Empty: report only."
     required: false
     default: findings
+  check:
+    description: "true: run a full Skill Check on each skill instead of a registry lookup. Needs `permissions: id-token: write`. Free for public repositories (4 checks per month); private repositories need a subscription."
+    required: false
+    default: "false"
+  publish:
+    description: "true: publish check results to the public Skill Registry (results with findings are reviewed first). Default keeps them unlisted."
+    required: false
+    default: "false"
+  timeout-seconds:
+    description: Maximum time to wait for each check result.
+    required: false
+    default: "1200"
   api:
     description: Registry origin.
     required: false
@@ -26,6 +38,9 @@ runs:
         PWNRY_API: ${{ inputs.api }}
         INPUT_PATHS: ${{ inputs.paths }}
         INPUT_FAIL_ON: ${{ inputs.fail-on }}
+        INPUT_CHECK: ${{ inputs.check }}
+        INPUT_PUBLISH: ${{ inputs.publish }}
+        INPUT_TIMEOUT_SECONDS: ${{ inputs.timeout-seconds }}
       run: |
         set -euo pipefail
         paths="$INPUT_PATHS"
@@ -36,8 +51,13 @@ runs:
           echo "No SKILL.md found."
           exit 0
         fi
-        args=()
-        if [ -n "$INPUT_FAIL_ON" ]; then args+=(--fail-on "$INPUT_FAIL_ON"); fi
         # Word splitting of $paths is intended: one argument per directory.
-        # shellcheck disable=SC2086
-        sh "$GITHUB_ACTION_PATH/skill-check.sh" "${args[@]}" $paths
+        if [ "$INPUT_CHECK" = "true" ]; then
+          # shellcheck disable=SC2086
+          bash "$GITHUB_ACTION_PATH/check.sh" $paths
+        else
+          args=()
+          if [ -n "$INPUT_FAIL_ON" ]; then args+=(--fail-on "$INPUT_FAIL_ON"); fi
+          # shellcheck disable=SC2086
+          sh "$GITHUB_ACTION_PATH/skill-check.sh" "${args[@]}" $paths
+        fi
